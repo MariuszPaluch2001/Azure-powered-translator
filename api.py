@@ -1,4 +1,4 @@
-import requests, uuid, json
+import requests, uuid
 
 import os
 from dotenv import load_dotenv
@@ -19,7 +19,7 @@ def get_translation(url: str, key: str, location: str, params: Dict, text: str) 
     request = requests.post(url, params=params, headers=headers, json=body)
     response = request.json()
     
-    return json.dumps(response, sort_keys=True, ensure_ascii=False, indent=4, separators=(',', ': '))
+    return response
 
 key = os.getenv('KEY')
 endpoint = os.getenv('ENDPOINT')
