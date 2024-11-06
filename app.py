@@ -1,38 +1,45 @@
-from flask import (
-    Flask, 
-    jsonify
-)
-import os
-from dotenv import load_dotenv
+from flask import Flask, render_template
+import requests
+import json
 
+from forms import TranslateForm
 from api import get_translation
-
-load_dotenv()
-
-key = os.getenv('KEY')
-endpoint = os.getenv('ENDPOINT')
-location = os.getenv('LOCATION')
-path = os.getenv('PATH_ENDPOINT')
-
-constructed_url = endpoint + path
-
-params = {
-    'api-version': '3.0', 
-    'from': 'en', 
-    'to': 'pl'
-}
+from config import ConfigClass
 
 app = Flask(__name__)
+config = ConfigClass(app)
 
-@app.route('/')
-def hello_world():
-    response = get_translation(constructed_url, key, location, params, 'I would really like to drive your car around the block a few times!')
-    text = response[0]["translations"][0]["text"]
+result = json.loads(
+    requests.get(
+        "https://api.cognitive.microsofttranslator.com/languages?api-version=3.0"
+    ).content
+)["translation"]
 
-    return jsonify({
-        "status": "success",
-        "message": text
-    }) 
+CHOICES = [(key, result[key]["nativeName"]) for key in result]
 
-if __name__ == '__main__':
-    app.run(debug=True)
+
+@app.route("/", methods=["GET", "POST"])
+def home():
+    form = TranslateForm(lang_from="pl", lang_to="en")
+    form.lang_from.choices = CHOICES
+    form.lang_to.choices = CHOICES
+
+    result = ""
+    if form.validate_on_submit():
+        text = form.text.data
+        params = {
+            "api-version": "3.0",
+            "from": form.lang_from.data,
+            "to": form.lang_to.data,
+        }
+
+        response = get_translation(
+            config.constructed_url, config.key, config.location, params, text
+        )
+        result = response[0]["translations"][0]["text"]
+
+    return render_template("index.html", form=form, result=result)
+
+
+if __name__ == "__main__":
+    app.run(debug=config.is_debug)
